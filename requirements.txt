@@ -1,1 +1,13 @@
 
+pandas
+numpy
+requests
+geopy
+sqlalchemy
+psycopg[binary]
+python-dotenv
+scikit-learn 
+xgboost 
+fastapi 
+uvicorn
+python-multipart
