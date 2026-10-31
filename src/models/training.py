@@ -1,4 +1,5 @@
-"""Entraînement XGBoost depuis PostgreSQL, sans sauvegarde du modèle."""
+"""Entraînement XGBoost depuis PostgreSQL avec suivi MLflow."""
+
 import os
 
 import numpy as np
@@ -13,7 +14,11 @@ from scipy.stats import randint, uniform
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from xgboost import XGBRegressor
-
+import mlflow
+import mlflow.sklearn
+import hashlib
+from src.models.comparer_model import selectionner_champion
+ 
 load_dotenv()
 
 CARACTERISTIQUES = [
@@ -67,33 +72,22 @@ def entrainer():
         X, y, test_size=0.2, random_state=42, stratify=X["type_local"]
     )
 
-    preprocesseur = ColumnTransformer([
-        (
-            "numeriques",
-            SimpleImputer(strategy="median"),
-            variables_numeriques
-        ),
-        (
-            "categories",
-            Pipeline([
-                ("imputation", SimpleImputer(strategy="most_frequent")),
-                ("encodage", OneHotEncoder(handle_unknown="ignore"))
-            ]),
-            variables_categorielles
-        )
-    ])
+    # Empreinte des données utilisées pour garder la tracabilité
+    donnees_test = X_test.copy()
+    donnees_test["cible_prix_m2"] = y_test
+
+    empreinte = pd.util.hash_pandas_object(donnees_test, index=True).values.tobytes()
+    evaluation_id = hashlib.sha256(empreinte).hexdigest()
+
+    preprocesseur = ColumnTransformer([("numeriques", SimpleImputer(strategy="median"), variables_numeriques)
+                            , ("categories", Pipeline([ ("imputation", SimpleImputer(strategy="most_frequent")), ("encodage", OneHotEncoder(handle_unknown="ignore"))]), variables_categorielles)])
     
     # Pipeline XGBoost
-    pipeline_xgb = Pipeline([
-        ("pretraitement", preprocesseur),
-        ("xgboost", XGBRegressor(
-            objective="reg:squarederror",
-            random_state=42,
-            n_jobs=1
-        ))
+    pipeline_xgb = Pipeline([("pretraitement", preprocesseur),
+        ("xgboost", XGBRegressor(objective="reg:squarederror", random_state=42, n_jobs=1))
     ])
 
-    # Hyperparamètres de ton ancien modèle optimisé 2
+    # Hyperparamètres du modèle xgboost 
     parametres = {
         "xgboost__n_estimators": randint(700, 901),
         "xgboost__learning_rate": uniform(0.05, 0.02),
@@ -113,14 +107,13 @@ def entrainer():
         n_iter=20,
         scoring="neg_mean_absolute_error",
         cv=3,
-        random_state=42,
+        # random_state=42,
         n_jobs=1,
         verbose=1
     )
 
     recherche_xgb.fit(X_train, y_train)
 
-    # Meilleur modèle
     modele = recherche_xgb.best_estimator_
     meilleurs_parametres = recherche_xgb.best_params_
     mae_cv = -recherche_xgb.best_score_
@@ -133,17 +126,61 @@ def entrainer():
         "RMSE": round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 2),
         "R2": round(float(r2_score(y_test, y_pred)), 4),
         "MAE_CV": round(float(mae_cv), 2),
-        # "meilleurs_parametres": {
-        #     cle: float(valeur) if isinstance(valeur, np.floating)
-        #     else int(valeur) if isinstance(valeur, np.integer)
-        #     else valeur
-        #     for cle, valeur in meilleurs_parametres.items()
-        # }
     }
+
+    # Configuration MLflow
+    mlflow.set_tracking_uri(
+        os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    )
+
+    mlflow.set_experiment("compagnon_immobilier")
+
+    with mlflow.start_run(run_name="xgboost_training"):
+
+        # Enregistrer les hyperparamètres
+        mlflow.log_params(meilleurs_parametres)
+
+        # Enregistrer les métriques
+        mlflow.log_metrics(metriques)
+
+        # Identifier le jeu d'évaluation
+        mlflow.log_param("evaluation_id", evaluation_id)
+
+        # Enregistrer le modèle dans le Registry
+        model_info = mlflow.sklearn.log_model(
+            sk_model=modele,
+            name="xgboost_model",
+            registered_model_name="compagnon_immobilier_xgboost",
+            serialization_format="skops",
+            skops_trusted_types=[
+                "numpy.dtype",
+                "xgboost.core.Booster",
+                "xgboost.sklearn.XGBRegressor"
+            ]
+        )
+
+        version = model_info.registered_model_version
+
+        if version is None:
+            raise RuntimeError(
+                "Le modèle n'a pas été enregistré dans le Registry"
+            )
+
+        # Comparer automatiquement
+        decision = selectionner_champion(
+            version=version,
+            nouvelle_mae=mean_absolute_error(y_test, y_pred),
+            X_test=X_test,
+            y_test=y_test
+        )
+        print(f"MLflow - Version {version} : {decision}")
+
+        metriques["version_mlflow"] = int(version)
+        metriques["comparaison"] = decision
 
     return modele, metriques
 
 
 if __name__ == "__main__":
     _, resultats = entrainer()
-    print("Entraînement terminé (modèle non sauvegardé) :", resultats)
+    print("Entraînement terminé et modèle enregistré dans MLflow :", resultats)

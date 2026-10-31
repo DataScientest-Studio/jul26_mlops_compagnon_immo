@@ -10,7 +10,6 @@ LYON_ARRONDISSEMENTS = {f"6938{i}" for i in range(1, 10)}
 
 
 def collecter_dvf() -> pd.DataFrame:
-    """Lit le DVF national par lots et ne garde que le département 69."""
     morceaux = []
     for lot in pd.read_csv(
         DVF_URL, compression="gzip", chunksize=20_000, low_memory=False,
@@ -29,7 +28,6 @@ def collecter_dvf() -> pd.DataFrame:
 
 
 def collecter_insee() -> pd.DataFrame:
-    """Télécharge le ZIP officiel INSEE, lit le CSV en mémoire et filtre le Rhône."""
     reponse = requests.get(INSEE_URL, timeout=180)
     reponse.raise_for_status()
     with ZipFile(BytesIO(reponse.content)) as archive:
@@ -38,7 +36,7 @@ def collecter_insee() -> pd.DataFrame:
                      and "metadata" not in n.lower()
                      and not n.startswith("__MACOSX/")]
         if not candidats:
-            raise ValueError(f"CSV de données INSEE introuvable dans le ZIP : {archive.namelist()}")
+            raise ValueError(f"CSV de données INSEE introuvable : {archive.namelist()}")
         # Si plusieurs CSV, privilégier le principal (le plus gros fichier).
         nom = max(candidats, key=lambda n: archive.getinfo(n).file_size)
         with archive.open(nom) as fichier:
@@ -57,5 +55,4 @@ def collecter_insee() -> pd.DataFrame:
 
 
 def collecter():
-    """Retourne les deux DataFrames bruts en mémoire."""
     return collecter_dvf(), collecter_insee()

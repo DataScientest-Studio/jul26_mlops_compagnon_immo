@@ -1,4 +1,3 @@
-
 pandas
 numpy
 requests
@@ -6,8 +5,9 @@ geopy
 sqlalchemy
 psycopg[binary]
 python-dotenv
-scikit-learn 
-xgboost 
-fastapi 
+scikit-learn
+xgboost-cpu
+fastapi
 uvicorn
 python-multipart
+mlflow==3.16.1

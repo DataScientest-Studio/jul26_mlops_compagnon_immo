@@ -40,7 +40,8 @@ services:
 
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,8 +49,70 @@ services:
     networks:
       - compagnon_network
 
+  minio:
+    image: dappros/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: compagnon_minio
+    restart: unless-stopped
+
+    command: server /data --console-address ":9001"
+
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+    volumes:
+      - minio_data:/data
+
+    networks:
+      - compagnon_network
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+
+    container_name: compagnon_mlflow
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:5000:5000"
+
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow_metadata
+
+    command:
+      - /bin/sh
+      - -c
+      - |
+        mlflow server \
+          --backend-store-uri "$$MLFLOW_BACKEND_STORE_URI" \
+          --artifacts-destination s3://mlflow-artifacts \
+          --serve-artifacts \
+          --host 0.0.0.0 \
+          --port 5000 \
+          --allowed-hosts "localhost,127.0.0.1,mlflow,mlflow:5000,localhost:5000,127.0.0.1:5000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+    networks:
+      - compagnon_network
+
 volumes:
   postgres_data:
+  minio_data:
 
 networks:
   compagnon_network:
