@@ -13,9 +13,7 @@ def creer_base():
     url = os.getenv("DATABASE_URL")
 
     if not url:
-        raise RuntimeError(
-            "DATABASE_URL absent : configurer le fichier .env"
-        )
+        raise RuntimeError("DATABASE_URL absent : configurer le fichier .env")
 
     db_url = make_url(url)
     nom_base = db_url.database

@@ -20,7 +20,6 @@ COLONNES_SUPPRIMEES = [
     "lot4_numero", "lot4_surface_carrez", "lot5_numero", "lot5_surface_carrez",
     "code_type_local", "code_nature_culture", "code_nature_culture_speciale",
     "nature_culture_speciale",
-    # Suppression lors de la finalisation dans le notebook d'origine
     "nature_culture", "nom_commune", "code_postal", "id_mutation", "id_parcelle",
     "adresse_nom_voie", "adresse_code_voie", "date_mutation", "adresse_numero",
     "lot1_numero",
@@ -38,8 +37,7 @@ def preparer_dvf(dvf: pd.DataFrame) -> pd.DataFrame:
     ids_multi = profils_par_mutation.index[profils_par_mutation > 1]
     df = df.loc[~df["id_mutation"].isin(ids_multi)].copy()
     # On somme chaque composante foncière une fois par mutation.
-    terrains = df[["id_mutation", "id_parcelle", "nature_culture",
-                  "nature_culture_speciale", "surface_terrain"]].drop_duplicates()
+    terrains = df[["id_mutation", "id_parcelle", "nature_culture", "nature_culture_speciale", "surface_terrain"]].drop_duplicates()
     surface = terrains.groupby("id_mutation")["surface_terrain"].sum(min_count=1)
     df = df.drop_duplicates(subset=["id_mutation"], keep="first").copy()
     df["surface_terrain"] = df["id_mutation"].map(surface)
@@ -50,8 +48,6 @@ def preparer_dvf(dvf: pd.DataFrame) -> pd.DataFrame:
     df = df.loc[df["surface_reelle_bati"] > 0].copy()
     df = creer_features(df)
     df, _, _ = detecter_prix_extremes(df)
-    # Reproduit les colonnes de dvf_nettoye.csv, sans appeler finaliser_datasets,
-    # car cette fonction écrit des CSV sur disque.
     df = df.drop(columns=COLONNES_SUPPRIMEES, errors="ignore")
     if df.empty:
         raise ValueError("Le prétraitement DVF a produit un DataFrame vide.")

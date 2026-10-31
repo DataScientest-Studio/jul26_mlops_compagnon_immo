@@ -20,7 +20,6 @@ def creer_features(dvf):
     dvf["log_surface"] = np.log1p(dvf["surface_reelle_bati"])
 
     # 4. Distance par rapport au centre de Lyon
-    # https://www.countrycoordinate.com/city-lyon-france/
     lyon = (45.7640, 4.8357)
     dvf["distance_lyon_km"] = dvf.apply(lambda ligne: geodesic((ligne["latitude"], ligne["longitude"]), lyon).km if pd.notna(ligne["latitude"]) and pd.notna(ligne["longitude"]) else np.nan, axis=1)
 
@@ -36,8 +35,7 @@ def detecter_prix_extremes(dvf):
     # appliquée au logarithme du prix
     # (La règle de Tukey => méthode statistique utilisée pour détecter les valeurs extrêmes à partir des quartiles.)
 
-    # Le calcul est réalisé séparément pour les maisons
-    # et les appartements.
+    # Le calcul est réalisé séparément pour les maisons et les appartements.
 
     # Retourne :
     # - le DataFrame filtré ;
@@ -103,8 +101,6 @@ def detecter_prix_extremes(dvf):
 
 def finaliser_datasets(dvf_initial, dvf_nettoye):
     # Finalise et exporte les deux versions du dataset DVF :
-    # - dvf_initial : avec les prix extrêmes ;
-    # - dvf_nettoye : sans les prix extrêmes.
     
     colonnes_a_supprimer = ["nature_culture", "nom_commune", "code_postal", "id_mutation", "id_parcelle", "adresse_nom_voie", "adresse_code_voie", "date_mutation", "code_departement", "adresse_numero", "lot1_numero"]
     datasets = {"dvf_initial": dvf_initial.copy(), "dvf_nettoye": dvf_nettoye.copy()}
@@ -114,9 +110,6 @@ def finaliser_datasets(dvf_initial, dvf_nettoye):
 
         # Suppression des colonnes inutiles
         df = df.drop(columns=colonnes_a_supprimer, errors="ignore")
-
-        # Vérification des lignes identiques
-        # nb_lignes_identiques = df.duplicated().sum()
 
         # Contrôles finaux
         assert df["prix_m2"].notna().all(), f"{nom} : il reste des NA dans prix_m2."
