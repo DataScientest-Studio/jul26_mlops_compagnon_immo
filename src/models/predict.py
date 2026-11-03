@@ -39,6 +39,7 @@ def predire(code_commune, type_local,
     if df.empty:
         raise ValueError("Commune ou type de logement introuvable")
 
+    df["surface_terrain"] = pd.to_numeric(df["surface_terrain"], errors="coerce")
     valeurs = df.median(numeric_only=True).to_dict()
 
     # 3. Construire les 12 variables du modèle

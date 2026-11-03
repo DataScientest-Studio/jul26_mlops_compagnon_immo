@@ -27,25 +27,43 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
+  training_api:
     build:
       context: .
       dockerfile: Dockerfile.api
-
-    container_name: compagnon_api
+    container_name: compagnon_training_api
     restart: unless-stopped
-
+    command: uvicorn src.api.training_api:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
-
+      - "127.0.0.1:8002:8000" 
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      
     depends_on:
       postgres:
         condition: service_healthy
+      mlflow:
+        condition: service_started
+    networks:
+      - compagnon_network
 
+  prediction_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: compagnon_prediction_api
+    restart: unless-stopped
+    command: uvicorn src.api.prediction_api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
     networks:
       - compagnon_network
 
