@@ -26,6 +26,10 @@ jobs:
         run: flake8 src tests --select=E9,F63,F7,F82
 
       - name: Exécuter les tests unitaires
+        env:
+            JWT_SECRET_KEY: "cle-tests"
+            ADMIN_PASSWORD_HASH: "hash-test"
+            USER_PASSWORD_HASH: "hash-test"
         run: python -m pytest tests/ -v
 
       - name: Construire les images Docker
