@@ -1,0 +1,35 @@
+
+name: CI - Compagnon Immobilier
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le projet
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: |
+          pip install -r requirements.txt
+
+      - name: Vérifier le code avec Flake8
+        run: flake8 src tests --select=E9,F63,F7,F82
+
+      - name: Exécuter les tests unitaires
+        run: pytest tests/ -v
+
+      - name: Construire les images Docker
+        run: |
+          docker build -f Dockerfile.api -t compagnon-api .
+          docker build -f Dockerfile.mlflow -t compagnon-mlflow .
+          docker build -f streamlit/Dockerfile -t compagnon-streamlit .

@@ -11,3 +11,9 @@ fastapi
 uvicorn
 python-multipart
 mlflow==3.16.1
+PyJWT
+pwdlib[argon2]
+streamlit
+skops
+pytest
+flake8

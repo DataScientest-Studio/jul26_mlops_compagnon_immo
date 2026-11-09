@@ -38,7 +38,10 @@ services:
       - "127.0.0.1:8002:8000" 
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_TRACKING_URI: http://mlflow:5000      
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      USER_PASSWORD_HASH: ${USER_PASSWORD_HASH}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,6 +62,9 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      USER_PASSWORD_HASH: ${USER_PASSWORD_HASH}
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,6 +131,21 @@ services:
       minio:
         condition: service_started
 
+    networks:
+      - compagnon_network
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: streamlit/Dockerfile
+    container_name: compagnon_streamlit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      PREDICTION_API_URL: http://prediction_api:8000
+    depends_on:
+      - prediction_api
     networks:
       - compagnon_network
 
