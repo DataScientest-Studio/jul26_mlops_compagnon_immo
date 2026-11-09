@@ -285,6 +285,28 @@ COMMUNES_RHONE = { code: nom for code, nom in ( ligne.split("|", 1) for ligne in
 69388|Lyon 8e arrondissement
 69389|Lyon 9e arrondissement""".splitlines() ) }
 
+# Codes à exclure selon les données PostgreSQL
+CODES_A_EXCLURE = {
+    "69001", "69002", "69008", "69012", "69014",
+    "69016", "69022", "69026", "69035", "69038",
+    "69042", "69054", "69057", "69058", "69060",
+    "69070", "69075", "69082", "69097", "69098",
+    "69099", "69103", "69109", "69123", "69130",
+    "69132", "69134", "69135", "69138", "69155",
+    "69161", "69164", "69165", "69167", "69169",
+    "69178", "69180", "69182", "69183", "69186",
+    "69192", "69198", "69209", "69216", "69217",
+    "69225", "69229", "69230", "69236", "69253",
+    "69258", "69261"
+}
+
+# Conserver uniquement les communes avec Maison ET Appartement
+COMMUNES_RHONE = {
+    code: nom
+    for code, nom in COMMUNES_RHONE.items()
+    if code not in CODES_A_EXCLURE
+}
+
 OPTIONS_COMMUNES = [ f"{code} — {nom}" for code, nom in sorted( COMMUNES_RHONE.items(), key=lambda ligne: ligne[1].casefold() ) ]
 
 st.set_page_config(page_title="Compagnon Immobilier", page_icon="🏠", layout="wide",)
@@ -372,7 +394,7 @@ def deconnecter():
 
 # En-tête
 st.title("🏠 Compagnon Immobilier")
-st.caption("Estimation immobilière • Démonstration MLOps • Département du Rhône")
+st.caption("Estimation immobilière • Département du Rhône")
 st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #D3D9E4;'>", unsafe_allow_html=True)
 
 # Connexion via l'API FastAPI
@@ -395,7 +417,7 @@ if not st.session_state.get("token"):
                 st.session_state.pop("infos_modele", None)
                 st.rerun()
             elif reponse.status_code in (400, 401):
-                st.error("Identifiants incorrects.")
+                st.error("Identifiants incorrects.")               
             else:
                 st.error(f"Erreur de connexion (HTTP {reponse.status_code}).")
         except (requests.RequestException, ValueError, KeyError):
@@ -418,7 +440,7 @@ onglet_estimation, onglet_modele = st.tabs([ "🏠 Estimation", "📊 Modèle ch
 ##################################################################################
 with onglet_estimation:
     st.subheader("Estimer la valeur d'un logement")
-    st.write("Indiquez les caractéristiques du bien pour obtenir son prix estimé.")
+    st.write("Indiquez les caractéristiques du bien pour obtenir le prix estimé.")
 
     with st.form("form_logement"):
         col_type, col_commune, col_surface, col_pieces = st.columns( [1.5, 3, 1.25, 1.25], gap="small" )
@@ -462,6 +484,9 @@ with onglet_estimation:
                 st.error("Vous n'êtes pas autorisé à effectuer une prédiction.")
             elif reponse.status_code == 422:
                 st.error("Les informations du logement sont invalides.")
+            elif reponse.status_code == 500:
+                st.error("Impossible d'estimer ce logement. "
+                        "Vérifiez les caractéristiques saisies.")  
             else:
                 st.error(f"Erreur de prédiction (HTTP {reponse.status_code}).")
         except (requests.RequestException, ValueError):
@@ -489,7 +514,7 @@ with onglet_estimation:
 ##################################################################################
 with onglet_modele:
     st.subheader("📊 Modèle Champion MLflow")
-    st.write( "Consultez la version actuellement associée à l'alias **champion** " "et les métriques enregistrées lors de son entraînement." )
+    st.write( "Consultez la version actuellement associée à l'alias **champion** " "et les métriques enregistrées lors de  l'entraînement." )
 
     if st.button("🔄 Actualiser depuis MLflow", key="actualiser_champion", type="primary"):
         st.session_state.pop("infos_modele", None)
