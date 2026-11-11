@@ -354,6 +354,15 @@ st.markdown("""
     box-shadow: 0 8px 20px rgba(32, 56, 93, 0.05);
 }
 
+/* Fond blanc pour l'ensemble des filtres de l'onglet Estimation */
+.st-key-bloc_filtres_estimation {
+    background: #FFFFFF !important;
+    border: 1px solid #E4EAF3 !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    box-shadow: 0 12px 30px rgba(32, 56, 93, 0.07) !important;
+}
+
 /* Onglets et boutons */
 .stTabs [data-baseweb="tab-list"] { gap: 12px; }
 .stTabs [data-baseweb="tab"] {
@@ -442,32 +451,140 @@ with onglet_estimation:
     st.subheader("Estimer la valeur d'un logement")
     st.write("Indiquez les caractéristiques du bien pour obtenir le prix estimé.")
 
-    with st.form("form_logement"):
-        col_type, col_commune, col_surface, col_pieces = st.columns( [1.5, 3, 1.25, 1.25], gap="small" )
+    # Les sélections dynamiques restent hors du formulaire afin que
+    # les quartiers et le champ terrain réagissent immédiatement.
+    @st.cache_data(ttl=3600)
+    def charger_quartiers(code_commune):
+        reponse = requests.get(
+            f"{PREDICTION_API_URL}/quartiers/{code_commune}", timeout=25
+        )
+        reponse.raise_for_status()
+        return reponse.json()
+
+    def reinitialiser_estimation():
+        for cle in (
+            "dernier_resultat", "dernier_logement", "duree_prediction",
+            "code_reponse", "commune_estimee",
+        ):
+            st.session_state.pop(cle, None)
+
+    def changer_commune():
+        # Vider le quartier sélectionné
+        st.session_state.pop("quartier_estimation", None)
+
+        # Forcer la création d'un nouveau champ Quartier
+        st.session_state["version_quartier"] = (
+            st.session_state.get("version_quartier", 0) + 1
+        )
+        # Effacer l'ancienne estimation
+        reinitialiser_estimation()
+
+    # Un seul bloc blanc pour tous les filtres et le bouton.
+    with st.container(border=True, key="bloc_filtres_estimation"):
+        col_type, col_commune, col_quartier = st.columns(
+            [1.8, 3, 3], gap="small"
+        )
+
         with col_type:
-            type_local = st.selectbox("Type de logement", ["Appartement", "Maison"])
-        with col_commune:    
-            commune_selectionnee = st.selectbox( "Commune (code INSEE — nom)", options=OPTIONS_COMMUNES, index=OPTIONS_COMMUNES.index("69005 — Ambérieux"), help="Sélectionnez une commune du Rhône ou un arrondissement de Lyon.", )
+            type_local = st.radio(
+                "Type de logement",
+                ["Appartement", "Maison"],
+                horizontal=True,
+                key="type_local_estimation",
+                on_change=reinitialiser_estimation,
+            )
+
+        with col_commune:
+            commune_selectionnee = st.selectbox(
+                "Commune (code INSEE)",
+                options=OPTIONS_COMMUNES,
+                index=OPTIONS_COMMUNES.index("69383 — Lyon 3e arrondissement"),
+                help="Sélectionnez une commune du Rhône ou un arrondissement de Lyon.",
+                key="commune_estimation",
+                on_change=changer_commune,
+            )
+
+        code_commune = commune_selectionnee.split(" — ", 1)[0]
+
+        try:
+            quartiers = charger_quartiers(code_commune)
+            erreur_quartiers = None
+        except (requests.RequestException, ValueError) as erreur:
+            quartiers = []
+            erreur_quartiers = str(erreur)
+
+        noms_quartiers = {
+            quartier["code_quartier"]: quartier["nom_quartier"]
+            for quartier in quartiers
+        }
+
+        with col_quartier:
+            code_quartier = st.selectbox(
+                "Quartier ",  #(IRIS)
+                options=list(noms_quartiers),
+                format_func=lambda code: noms_quartiers[code],
+                index=None,
+                placeholder="Sélectionnez un quartier",
+                key=f"quartier_estimation_{st.session_state.get('version_quartier', 0)}",
+                disabled=not bool(quartiers),
+                on_change=reinitialiser_estimation,
+            )
+
+        if erreur_quartiers:
+            st.error("Impossible de charger les quartiers depuis l'API de prédiction.")
+        elif not quartiers:
+            st.warning("Aucun quartier disponible pour cette commune.")
+
+        col_surface, col_pieces = st.columns(2, gap="small")
         with col_surface:
-            surface = st.number_input( "Surface (m²)", min_value=1.0, value=70.0, step=1.0 )
+            surface = st.number_input(
+                "Surface habitable (m²)", min_value=1.0, value=70.0, step=1.0
+            )
         with col_pieces:
             pieces = st.number_input("Nombre de pièces", min_value=1, value=3)
 
-        estimer = st.form_submit_button( "🔎 Estimer ce bien", type="primary", width="content" )
+        if type_local == "Maison":
+            surface_terrain = st.number_input(
+                "Surface du terrain (m²) — facultative",
+                min_value=0.0,
+                value=None,
+                step=10.0,
+                placeholder="Ex. 300",
+                help="Laissez vide si la surface du terrain est inconnue.",
+            )
+        else:
+            surface_terrain = 0.0
+
+        estimer = st.button(
+            "🔎 Estimer ce bien", type="primary", width="content",
+            disabled=(code_quartier is None or not quartiers),
+        )
 
     if estimer:
-        # Efface l'ancienne estimation avant une nouvelle requête
-        for cle in ( "dernier_resultat", "dernier_logement", "duree_prediction", "code_reponse", "commune_estimee", ):
-            st.session_state.pop(cle, None)
+        reinitialiser_estimation()
 
-        # API attend le code commune
-        code_commune = commune_selectionnee.split(" — ", 1)[0]
-        logement = { "code_commune": code_commune, "type_local": type_local, "surface_reelle_bati": float(surface), "nombre_pieces_principales": int(pieces), }
+        logement = {
+            "code_commune": code_commune,
+            "code_quartier": code_quartier,
+            "type_local": type_local,
+            "surface_reelle_bati": float(surface),
+            "nombre_pieces_principales": int(pieces),
+            "surface_terrain": (
+                float(surface_terrain) if surface_terrain is not None else None
+            ),
+        }
+
         try:
             with st.spinner("Calcul de l'estimation..."):
                 debut = time.perf_counter()
-                reponse = requests.post( f"{PREDICTION_API_URL}/predict/", json=logement, headers={ "Authorization": f"Bearer {st.session_state['token']}" }, timeout=60, )
+                reponse = requests.post(
+                    f"{PREDICTION_API_URL}/predict/",
+                    json=logement,
+                    headers={"Authorization": f"Bearer {st.session_state['token']}"},
+                    timeout=60,
+                )
                 duree = time.perf_counter() - debut
+
             st.session_state["code_reponse"] = reponse.status_code
             st.session_state["duree_prediction"] = duree
 
@@ -485,8 +602,10 @@ with onglet_estimation:
             elif reponse.status_code == 422:
                 st.error("Les informations du logement sont invalides.")
             elif reponse.status_code == 500:
-                st.error("Impossible d'estimer ce logement. "
-                        "Vérifiez les caractéristiques saisies.")  
+                st.error(
+                    "Impossible d'estimer ce logement. "
+                    "Vérifiez les caractéristiques saisies."
+                )
             else:
                 st.error(f"Erreur de prédiction (HTTP {reponse.status_code}).")
         except (requests.RequestException, ValueError):
@@ -504,8 +623,12 @@ with onglet_estimation:
             c1, c2 = st.columns(2)
             c1.metric("Prix estimé au m²", euros(prix_m2, 2))
             c2.metric("Valeur totale estimée", euros(prix_total))
-            st.caption( f"{logement['type_local']} • {logement['surface_reelle_bati']:g} m² " f"• {logement['nombre_pieces_principales']} pièces " f"• Commune {st.session_state.get('commune_estimee', logement['code_commune'])}" )
-            # st.info("Cette estimation est indicative et ne remplace pas une expertise immobilière.")
+            st.caption(
+                f"{logement['type_local']} • {logement['surface_reelle_bati']:g} m² "
+                f"• {logement['nombre_pieces_principales']} pièces "
+                f"• Commune {st.session_state.get('commune_estimee', logement['code_commune'])} "
+                f"• Quartier {noms_quartiers.get(logement['code_quartier'], logement['code_quartier'])}"
+            )
         else:
             st.warning("La réponse de l'API ne contient pas les prix attendus.")
             st.json(resultat)
