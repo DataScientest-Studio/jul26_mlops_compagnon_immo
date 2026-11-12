@@ -17,4 +17,6 @@ streamlit
 skops
 pytest
 flake8
-httpx2
+httpx
+shapely
+
