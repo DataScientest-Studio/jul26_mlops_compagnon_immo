@@ -442,7 +442,7 @@ with col_logout:
     if st.button("Déconnexion", key="btn_deconnexion", use_container_width=True):
         deconnecter()
 
-onglet_estimation, onglet_modele = st.tabs([ "🏠 Estimation", "📊 Modèle champion et performance" ])
+onglet_estimation, onglet_modele, onglet_transaction_realisee = st.tabs([ "🏠 Estimation", "📊 Modèle champion et performance", "💰 Transaction réalisée"])
 
 ##################################################################################
 # ONGLET 1 — prédire à partir de la Prediction API
@@ -683,3 +683,54 @@ with onglet_modele:
             st.caption(f"Run MLflow : {infos['run_id']}")
     else:
         st.info("Cliquez sur « Actualiser depuis MLflow » pour afficher le Champion.")
+
+##################################################################################
+# ONGLET 3 — Retour du prix réel après une vente ou un achat.
+##################################################################################
+with onglet_transaction_realisee:
+    st.subheader("Enregistrer le prix réel d'une transaction")
+    st.write(
+        "Renseignez le prix réel de la transaction afin de comparer les estimations "
+        "aux valeurs observées et de suivre les performances du modèle avec Evidently."
+    )
+
+    with st.form("form_prix_reel"):
+        # ligne 1 — Identifiant de la prédiction
+        col_label, col_input = st.columns(
+            [1, 2.6],
+            gap="small",
+            vertical_alignment="center"
+        )
+
+        with col_label:
+            st.html(
+                '<div style="font-family:inherit; font-size:14px; '
+                'font-weight:400; line-height:1.5;">'
+                'Identifiant de la prédiction (Request ID)'
+                '</div>'
+            )
+
+        with col_input:
+            request_id = st.text_input("Identifiant", placeholder="Ex. : 8f4a2c91-...", label_visibility="collapsed"            )
+
+        # ligne 2 — Prix réel de la transaction
+        col_label2, col_input2 = st.columns( [1, 2.6], gap="small", vertical_alignment="center")
+
+        with col_label2:
+            st.html(
+                '<div style="font-family:inherit; font-size:14px; '
+                'font-weight:400; line-height:1.5;">'
+                'Prix réel de la transaction (€)'
+                '</div>'
+            )
+
+        with col_input2:
+            prix_reel = st.number_input("Prix réel", min_value=0.0, value=None, step=1000.0,
+                format="%.2f", placeholder="Ex. : 250000", label_visibility="collapsed")
+
+        transmettre = st.form_submit_button( "Transmettre le prix réel", type="primary")
+
+    if transmettre:
+        if not request_id.strip() or prix_reel is None or prix_reel <= 0:
+            st.warning("Veuillez renseigner les deux champs.")
+        
