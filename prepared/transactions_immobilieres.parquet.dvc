@@ -1,5 +1,5 @@
 outs:
-- md5: 5a0da6febb69ca7f87b709c5e67324c7
+- md5: 0372e8010ed9f24d80fbe3996a0bcf37
   size: 4846963
   hash: md5
   path: transactions_immobilieres.parquet
