@@ -1,0 +1,2 @@
+# Les scripts sont appelés avec bash, y compris sur les bind mounts Windows.
+/scripts/dvc_*.sh text eol=lf

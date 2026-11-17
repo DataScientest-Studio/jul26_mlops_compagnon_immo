@@ -1,0 +1,870 @@
+{
+  "uid": "ml-drift",
+  "title": "Monitoring ML : drift des données",
+  "description": "Résultats du DAG monitoring_evidently (production vs référence du champion).",
+  "tags": [
+    "ml",
+    "evidently"
+  ],
+  "timezone": "Europe/Paris",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Âge du dernier calcul Evidently",
+      "description": "Âge du calcul du champion actuel. Une série absente signifie qu'il n'a pas encore été évalué. Un âge élevé peut aussi venir d'un run ignoré faute de prédictions, pas forcément d'un échec.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "time() - max(ml_monitoring_computed_timestamp_seconds{metric=\"part_colonnes_en_drift\",feature=\"\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 129600
+              },
+              {
+                "color": "red",
+                "value": 216000
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Modèle surveillé",
+      "description": "Version du champion pour laquelle les dernières métriques ont été calculées (référence = son jeu d'entraînement).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 5,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (model_version) (ml_monitoring_value{metric=\"n_lignes_courant\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "V{{model_version}}",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "name",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Part de colonnes en drift",
+      "description": "Colonnes surveillées (surface, pièces, commune, type de logement) + prédiction. Le seuil de 50 % est celui du preset Evidently.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"part_colonnes_en_drift\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.3
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Prédictions analysées",
+      "description": "Nombre de prédictions de la fenêtre glissante (7 jours par défaut) comparées à la référence.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"n_lignes_courant\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Taux vérité terrain",
+      "description": "Part des prédictions analysées disposant d’une vérité terrain valide.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_monitoring_value{metric=\"taux_verites_terrain\",feature=\"\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"}",
+          "legendFormat": "Taux vérité terrain",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "max": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Drift par colonne (dernier calcul)",
+      "description": "Evidently choisit la méthode statistique colonne par colonne (test, distance...). Le score n'est donc pas comparable d'une colonne à l'autre : lis le statut, pas le score.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_monitoring_value{metric=\"drift_detecte\", feature!=\"\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"}",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_monitoring_value{metric=\"drift_score\", feature!=\"\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"}",
+          "legendFormat": "__auto",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "cellOptions": {
+              "type": "color-background"
+            },
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Statut"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Stable",
+                        "color": "green",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "Drift",
+                        "color": "red",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Score de drift"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Colonne"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md"
+      },
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "feature",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "feature",
+                "Value #A",
+                "Value #B"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "feature": "Colonne",
+              "Value #A": "Statut",
+              "Value #B": "Score de drift"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Prix moyen au m² prédit : production vs référence",
+      "description": "Un écart durable entre les deux courbes signale un changement de profil des biens estimés.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"prediction_moyenne_courant\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "Production (fenêtre)",
+          "refId": "A",
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"prediction_moyenne_reference\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "Référence (jeu d'entraînement)",
+          "refId": "B",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "suffix: €/m²",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "drawStyle": "line",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Part de colonnes en drift dans le temps",
+      "description": "La courbe est plate entre deux calculs quotidiens : Prometheus relit la dernière valeur écrite par le DAG.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"part_colonnes_en_drift\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "Part de colonnes en drift",
+          "refId": "A",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": true,
+            "drawStyle": "line",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "state-timeline",
+      "title": "Statut de drift par colonne dans le temps",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_monitoring_value{metric=\"drift_detecte\", feature!=\"\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"}",
+          "legendFormat": "{{feature}}",
+          "refId": "A",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Stable",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Drift",
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true,
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Volumes : production vs référence",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"n_lignes_courant\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "Prédictions de la fenêtre",
+          "refId": "A",
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ml_monitoring_value{metric=\"n_lignes_reference\"} and on(model_version) ml_model_score{score=\"mae\",champion=\"true\"})",
+          "legendFormat": "Lignes de référence",
+          "refId": "B",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "drawStyle": "line",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "text",
+      "title": "Comment lire ce tableau de bord",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Source** : DAG Airflow `monitoring_evidently` (quotidien, 06:00). Il compare les prédictions réelles de l'API (`monitoring.prediction_logs`, fenêtre de 7 jours) à l'échantillon d'entraînement du modèle champion (artefact MLflow), puis écrit les résultats dans `monitoring.ml_metrics`. `sql_exporter` les expose, Prometheus les stocke.\n\n- **Drift** : la distribution de la colonne en production diffère de celle de l'entraînement.\n- **Moins de 100 prédictions** dans la fenêtre : le DAG saute le calcul (pas de nouveau point).\n- **Rapport détaillé** : Evidently UI (`docker compose --profile ui up`, port 8001)."
+      }
+    }
+  ]
+}

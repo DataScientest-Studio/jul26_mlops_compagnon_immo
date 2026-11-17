@@ -1,0 +1,82 @@
+# Collecteur sql_exporter : état du pipeline de données et des modèles (schémas metadata et monitoring).
+collector_name: ml_pipeline
+
+metrics:
+  - metric_name: ml_champion_version
+    type: gauge
+    help: "Numéro de version MLflow du modèle champion (0 si aucun)."
+    values: [version]
+    query: |
+      SELECT COALESCE(MAX(model_version) FILTER (WHERE est_champion), 0)::float AS version
+      FROM metadata.model_versions
+
+  - metric_name: ml_model_score
+    type: gauge
+    help: "Scores d'une version de modèle sur son jeu de test (mae, rmse, r2, mae_cv)."
+    key_labels: [model_version, score, champion]
+    values: [value]
+    query: |
+      SELECT model_version::text AS model_version, score, est_champion::text AS champion, value
+      FROM (
+        SELECT model_version, est_champion, 'mae'    AS score, mae    AS value FROM metadata.model_versions
+        UNION ALL
+        SELECT model_version, est_champion, 'rmse'   AS score, rmse   AS value FROM metadata.model_versions
+        UNION ALL
+        SELECT model_version, est_champion, 'r2'     AS score, r2     AS value FROM metadata.model_versions
+        UNION ALL
+        SELECT model_version, est_champion, 'mae_cv' AS score, mae_cv AS value FROM metadata.model_versions
+      ) s
+      WHERE value IS NOT NULL
+
+  - metric_name: ml_dataset_loaded_timestamp_seconds
+    type: gauge
+    help: "Date (epoch) du dernier chargement de la table dans PostgreSQL."
+    key_labels: [table_name]
+    values: [ts]
+    query: |
+      SELECT table_name, EXTRACT(EPOCH FROM loaded_at) AS ts FROM metadata.loaded_tables
+
+  - metric_name: ml_dataset_loaded_rows
+    type: gauge
+    help: "Nombre de lignes du jeu préparé actuellement chargé."
+    key_labels: [table_name]
+    values: [nb]
+    query: |
+      SELECT table_name, nb_lignes::float AS nb FROM metadata.loaded_tables
+
+  - metric_name: ml_dataset_loaded_info
+    type: gauge
+    help: "ID DVC (12 premiers caractères du MD5) du jeu préparé actuellement chargé. Valeur toujours 1."
+    key_labels: [table_name, prepared_dataset_id]
+    values: [un]
+    query: |
+      SELECT table_name, left(prepared_dataset_id, 12) AS prepared_dataset_id, 1::float AS un
+      FROM metadata.loaded_tables
+
+  - metric_name: ml_dataset_versions
+    type: gauge
+    help: "Nombre de versions de jeux de données connues (kind = dvf, insee, prepared)."
+    key_labels: [kind]
+    values: [nb]
+    query: |
+      SELECT source AS kind, COUNT(*)::float AS nb FROM metadata.raw_datasets GROUP BY source
+      UNION ALL
+      SELECT 'prepared' AS kind, COUNT(*)::float AS nb FROM metadata.prepared_datasets
+
+  - metric_name: ml_predictions_24h
+    type: gauge
+    help: "Prédictions journalisées dans monitoring.prediction_logs sur les dernières 24 h, par version."
+    key_labels: [model_version]
+    values: [nb]
+    query: |
+      SELECT model_version::text AS model_version, COUNT(*)::float AS nb
+      FROM monitoring.prediction_logs
+      WHERE created_at > now() - interval '24 hours'
+      GROUP BY model_version
+
+  - metric_name: ml_prediction_logs_last_timestamp_seconds
+    type: gauge
+    help: "Date (epoch) de la dernière prédiction journalisée (0 si aucune)."
+    values: [ts]
+    query: |
+      SELECT COALESCE(EXTRACT(EPOCH FROM MAX(created_at)), 0) AS ts FROM monitoring.prediction_logs

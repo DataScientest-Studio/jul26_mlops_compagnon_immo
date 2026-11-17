@@ -58,6 +58,7 @@ target/
 
 # DotEnv configuration
 .env
+.env.example
 
 # Database
 *.db
@@ -87,3 +88,9 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+# venv
+.venv/
+
+# .tmp/
+.tmp/

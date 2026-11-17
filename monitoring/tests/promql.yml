@@ -1,0 +1,87 @@
+evaluation_interval: 1m
+tests:
+  # Une ancienne version en drift ne doit pas déclencher l'alerte du champion.
+  - name: ancienne-version-exclue
+    interval: 1m
+    input_series:
+      - series: 'ml_model_score{job="sql_exporter",score="mae",champion="true",model_version="2"}'
+        values: '200+0x10'
+      - series: 'ml_monitoring_value{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="1"}'
+        values: '0.9+0x10'
+      - series: 'ml_monitoring_value{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="2"}'
+        values: '0.1+0x10'
+      - series: 'ml_monitoring_computed_timestamp_seconds{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="2"}'
+        values: '0+0x10'
+    promql_expr_test:
+      - expr: RULE:immo-drift-champion
+        eval_time: 10m
+        exp_samples:
+          - labels: '{model_version="2"}'
+            value: 0
+  - name: champion-en-drift-seuil-inclus
+    interval: 1m
+    input_series:
+      - series: 'ml_model_score{job="sql_exporter",score="mae",champion="true",model_version="2"}'
+        values: '200+0x10'
+      - series: 'ml_monitoring_value{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="2"}'
+        values: '0.5+0x10'
+      - series: 'ml_monitoring_computed_timestamp_seconds{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="2"}'
+        values: '0+0x10'
+    promql_expr_test:
+      - expr: RULE:immo-drift-champion
+        eval_time: 10m
+        exp_samples:
+          - labels: '{model_version="2"}'
+            value: 1
+  - name: drift-perime-non-declenchant
+    interval: 1h
+    input_series:
+      - series: 'ml_model_score{job="sql_exporter",score="mae",champion="true",model_version="2"}'
+        values: '200+0x40'
+      - series: 'ml_monitoring_value{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="2"}'
+        values: '0.9+0x40'
+      - series: 'ml_monitoring_computed_timestamp_seconds{job="sql_exporter",metric="part_colonnes_en_drift",feature="",model_version="2"}'
+        values: '0+0x40'
+    promql_expr_test:
+      - expr: RULE:immo-drift-champion
+        eval_time: 37h
+        exp_samples: []
+  - name: premier-echec-serie-nouvelle
+    interval: 1m
+    input_series:
+      - series: 'airflow_dagrun_duration_seconds_count{job="airflow_statsd",state="failed",dag_id="training_immobilier"}'
+        values: '_ _ _ _ _ 1 1 1'
+    promql_expr_test:
+      - expr: RULE:immo-dag-failed
+        eval_time: 7m
+        exp_samples:
+          - labels: '{dag_id="training_immobilier"}'
+            value: 1
+  - name: echec-compteur-incremente
+    interval: 1m
+    input_series:
+      - series: 'airflow_dagrun_duration_seconds_count{job="airflow_statsd",state="failed",dag_id="monitoring_evidently"}'
+        values: '1+0x20 2+0x5'
+    promql_expr_test:
+      - expr: RULE:immo-dag-failed
+        eval_time: 23m
+        exp_samples:
+          - labels: '{dag_id="monitoring_evidently"}'
+            value: 1.0714285714285714
+  - name: api-et-heartbeat-absents
+    interval: 1m
+    input_series: []
+    promql_expr_test:
+      - expr: RULE:immo-api-down
+        eval_time: 5m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: RULE:immo-scheduler-silent
+        eval_time: 5m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: RULE:immo-dag-failed
+        eval_time: 5m
+        exp_samples: []

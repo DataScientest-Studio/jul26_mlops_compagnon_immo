@@ -1,0 +1,20 @@
+# Dépendances ajoutées à l'image Airflow (Dockerfile.airflow).
+# Monitoring (DAG monitoring_evidently)
+evidently==0.7.23
+mlflow==3.16.1
+pandas<3            # evidently 0.7.x s'importe pas avec pandas 3
+pyarrow
+psycopg[binary]
+# Entraînement (futur DAG d'entraînement: training.py, comparer_model.py, load_database.py)
+scikit-learn
+xgboost-cpu
+skops
+scipy
+geopy
+python-dotenv
+requests
+# Versionnement des jeux de données (DAG training_immobilier) : CLI dvc + stockage S3/MinIO
+dvc[s3]>=3.60,<4
+PyYAML
+# Client DogStatsD pour conserver dag_id avec Airflow 3.
+datadog==0.56.0

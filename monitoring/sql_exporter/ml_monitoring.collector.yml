@@ -1,0 +1,45 @@
+# Collecteur sql_exporter (burningalchemist/sql_exporter) : dernière valeur de chaque
+# métrique ML écrite par le DAG monitoring_evidently dans immobilier_db.
+# À référencer dans sql_exporter.yml : collectors: [ml_monitoring] + collector_files.
+collector_name: ml_monitoring
+
+metrics:
+  - metric_name: ml_monitoring_value
+    type: gauge
+    help: "Dernière valeur des métriques ML (drift, volume, prédictions) calculées par Evidently."
+    key_labels:
+      - metric
+      - feature
+      - model_version
+    values:
+      - value
+    query: |
+      SELECT DISTINCT ON (metric_name, column_name, model_version)
+             metric_name          AS metric,
+             column_name          AS feature,
+             model_version::text  AS model_version,
+             value
+      FROM monitoring.ml_metrics
+      ORDER BY metric_name, column_name, model_version, computed_at DESC, id DESC
+
+  - metric_name: ml_monitoring_computed_timestamp_seconds
+    type: gauge
+    help: "Date du calcul par métrique, colonne et version (pas la date du scraping)."
+    key_labels: [metric, feature, model_version]
+    values: [ts]
+    query: |
+      SELECT DISTINCT ON (metric_name, column_name, model_version)
+             metric_name AS metric,
+             column_name AS feature,
+             model_version::text AS model_version,
+             EXTRACT(EPOCH FROM computed_at) AS ts
+      FROM monitoring.ml_metrics
+      ORDER BY metric_name, column_name, model_version, computed_at DESC, id DESC
+
+  - metric_name: ml_monitoring_last_run_timestamp_seconds
+    type: gauge
+    help: "Horodatage (epoch) du dernier calcul de monitoring ML."
+    values:
+      - ts
+    query: |
+      SELECT COALESCE(EXTRACT(EPOCH FROM MAX(computed_at)), 0) AS ts FROM monitoring.ml_metrics

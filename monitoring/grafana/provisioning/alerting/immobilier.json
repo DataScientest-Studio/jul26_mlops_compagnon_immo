@@ -1,0 +1,545 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "supervision-immobilier",
+      "folder": "Compagnon Immobilier",
+      "interval": "1m",
+      "rules": [
+        {
+          "uid": "immo-drift-champion",
+          "title": "Drift du modèle champion",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "max by (model_version) ((ml_monitoring_value{job=\"sql_exporter\",metric=\"part_colonnes_en_drift\",feature=\"\"} and on(model_version) ml_model_score{job=\"sql_exporter\",score=\"mae\",champion=\"true\"}) and on(model_version) ((time() - ml_monitoring_computed_timestamp_seconds{job=\"sql_exporter\",metric=\"part_colonnes_en_drift\",feature=\"\"}) < 129600)) >= bool 0.5",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "for": "5m",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Au moins 50 % des colonnes du champion sont en drift",
+            "description": "Dernier calcul par version, âgé de moins de 36 h. Le statut reste actif jusqu'au prochain calcul sain ou jusqu'à péremption."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "warning"
+          }
+        },
+        {
+          "uid": "immo-dag-failed",
+          "title": "Échec d'un DAG immobilier",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "sum by (dag_id) ((increase(airflow_dagrun_duration_seconds_count{job=\"airflow_statsd\",state=\"failed\",dag_id=~\"training_immobilier|monitoring_evidently\"}[15m]) > 0) or ((airflow_dagrun_duration_seconds_count{job=\"airflow_statsd\",state=\"failed\",dag_id=~\"training_immobilier|monitoring_evidently\"} > 0) unless airflow_dagrun_duration_seconds_count{job=\"airflow_statsd\",state=\"failed\",dag_id=~\"training_immobilier|monitoring_evidently\"} offset 15m))",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "for": "0s",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Un DAG immobilier a terminé en échec dans les 15 dernières minutes",
+            "description": "DAG : {{ $labels.dag_id }}. Vérifier les logs Airflow. Événement StatsD non durable : voir les limites documentées."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "critical"
+          }
+        },
+        {
+          "uid": "immo-api-down",
+          "title": "API de prédiction indisponible",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "max(up{job=\"inference_api\"}) or vector(0)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "for": "2m",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Prometheus ne peut plus lire /metrics de l'API depuis 2 minutes",
+            "description": "Vérifier prediction_api, son réseau et MLflow. Cette sonde ne valide pas une prédiction ni la présence d'un champion."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "critical"
+          }
+        },
+        {
+          "uid": "immo-statsd-down",
+          "title": "Collecte StatsD Airflow indisponible",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "max(up{job=\"airflow_statsd\"}) or vector(0)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "for": "2m",
+          "isPaused": false,
+          "annotations": {
+            "summary": "La collecte des événements Airflow est indisponible",
+            "description": "Les échecs de DAG ne sont plus observables via StatsD. Vérifier statsd-exporter."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "critical"
+          }
+        },
+        {
+          "uid": "immo-scheduler-silent",
+          "title": "Scheduler Airflow silencieux",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "sum(increase(airflow_scheduler_heartbeat_total{job=\"airflow_statsd\"}[3m])) or vector(0)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "for": "5m",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Aucun heartbeat Airflow récent",
+            "description": "Le scheduler ou le flux DogStatsD est interrompu. Le simple up de statsd-exporter ne garantit pas l'arrivée des événements."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "critical"
+          }
+        },
+        {
+          "uid": "immo-drift-stale",
+          "title": "Monitoring du champion périmé",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "(time() - (max by(model_version) (ml_monitoring_computed_timestamp_seconds{job=\"sql_exporter\",metric=\"part_colonnes_en_drift\",feature=\"\"}) or on(model_version) (max by(model_version) (ml_model_score{job=\"sql_exporter\",score=\"mae\",champion=\"true\"}) * 0))) and on(model_version) ml_model_score{job=\"sql_exporter\",score=\"mae\",champion=\"true\"}",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        129600
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "for": "10m",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Le champion n'a pas de mesure de drift fraîche (36 h)",
+            "description": "Un DAG ignoré faute de prédictions n'est pas un échec. Cette alerte indique une absence de mesure, pas une dérive. Si aucune mesure n'existe pour le champion, elle s'active après 10 minutes."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "warning"
+          }
+        },
+        {
+          "uid": "immo-ml-collection-down",
+          "title": "Collecte SQL des métriques ML indisponible",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 900,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "max(up{job=\"sql_exporter\"}) or vector(0)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "type": "threshold",
+                "expression": "A",
+                "refId": "C",
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "for": "2m",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Les mesures de drift et les scores métier ne sont plus collectés",
+            "description": "Vérifier sql_exporter, PostgreSQL et les tables monitoring/metadata. Ne pas interpréter l'absence de drift comme un état sain."
+          },
+          "labels": {
+            "project": "compagnon-immobilier",
+            "severity": "critical"
+          }
+        }
+      ]
+    }
+  ]
+}

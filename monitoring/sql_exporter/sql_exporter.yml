@@ -1,0 +1,16 @@
+# Configuration de sql_exporter (burningalchemist/sql_exporter).
+# DSN fourni par la variable d'environnement.
+# SQLEXPORTER_TARGET_DSN (voir docker-compose.yml) pour ne pas stocker de mot de passe.
+global:
+  scrape_timeout_offset: 500ms
+  min_interval: 0s
+  max_connections: 3
+  max_idle_connections: 3
+
+target:
+  name: immobilier_db
+  data_source_name: "postgres://placeholder@postgres:5432/immobilier_db?sslmode=disable"
+  collectors: [ml_monitoring, ml_pipeline]
+
+collector_files:
+  - "*.collector.yml"

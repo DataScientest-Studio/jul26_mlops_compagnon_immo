@@ -1,0 +1,31 @@
+# Airflow 3.3.2 émet dagrun.duration.failed avec un tag dag_id.
+# DogStatsD nécessaire côté Airflow. Ne pas ajouter scale: 0.001 :
+# statsd_exporter convertit déjà les timers ms en secondes.
+mappings:
+  - match: airflow.dagrun.duration.*
+    name: airflow_dagrun_duration_seconds
+    observer_type: histogram
+    histogram_options:
+      buckets: [1, 10, 30, 60, 300, 900, 3600, 14400]
+    labels:
+      state: "$1"
+    honor_labels: true
+
+  - match: airflow.scheduler_heartbeat
+    name: airflow_scheduler_heartbeat_total
+
+  - match: airflow.executor.running_tasks
+    name: airflow_executor_running_tasks
+
+  - match: airflow.executor.queued_tasks
+    name: airflow_executor_queued_tasks
+
+  - match: airflow.executor.open_slots
+    name: airflow_executor_open_slots
+
+  # Limite la cardinalité: pas de labels run_id/task_id par défaut.
+  # Ces métriques ne sont pas nécessaires aux alertes et au dashboard livré.
+  - match: "."
+    match_type: regex
+    action: drop
+    name: ignored

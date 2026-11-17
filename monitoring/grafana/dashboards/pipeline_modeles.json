@@ -1,0 +1,641 @@
+{
+  "uid": "ml-pipeline",
+  "title": "Pipeline de données et modèles",
+  "description": "Jeux de données versionnés (DVC/MinIO), table chargée, scores des versions de modèle.",
+  "tags": [
+    "ml",
+    "dvc",
+    "mlflow"
+  ],
+  "timezone": "Europe/Paris",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Champion actuel",
+      "description": "Alias MLflow « champion » (0 = aucun).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_champion_version",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "prefix: V",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Jeu préparé chargé",
+      "description": "12 premiers caractères du MD5 DVC : retrouve l'objet dans MinIO (dvc-data/files/md5/xx/...).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_dataset_loaded_info{table_name=\"public.transactions_immobilieres\"}",
+          "legendFormat": "{{prepared_dataset_id}}",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "name",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Lignes chargées",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 10,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_dataset_loaded_rows{table_name=\"public.transactions_immobilieres\"}",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "Âge du jeu chargé",
+      "description": "Orange après 90 jours, rouge après 180 jours. Les données DVF sont mises à jour par semestre.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "time() - ml_dataset_loaded_timestamp_seconds{table_name=\"public.transactions_immobilieres\"}",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 7776000
+              },
+              {
+                "color": "red",
+                "value": 15552000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Versions de jeux connues",
+      "description": "Jeux bruts (DVF, INSEE) et préparés versionnés par DVC dans MinIO.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(ml_dataset_versions)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 27,
+      "type": "bargauge",
+      "title": "MAE par version de modèle (€/m², plus bas = mieux)",
+      "description": "Mesurée par chaque version sur son propre jeu de test.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_model_score{score=\"mae\"}",
+          "legendFormat": "V{{model_version}}",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "suffix: €/m²",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "table",
+      "title": "Scores des versions de modèle",
+      "description": "MAE, RMSE, MAE en validation croisée et R² par version.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_model_score",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "model_version\\score"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Version"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md"
+      },
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "score",
+            "rowField": "model_version",
+            "valueField": "Value"
+          }
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Versions de jeux de données",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ml_dataset_versions",
+          "legendFormat": "{{kind}}",
+          "refId": "A",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "drawStyle": "line",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Âge de la dernière prédiction journalisée",
+      "description": "Si cette courbe monte sans s'arrêter alors que l'API reçoit du trafic, l'écriture du journal est cassée.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "time() - ml_prediction_logs_last_timestamp_seconds",
+          "legendFormat": "Âge",
+          "refId": "A",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "drawStyle": "line",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "text",
+      "title": "Lignage",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Chaque version de modèle est reliée à son jeu préparé, puis à ses deux jeux bruts, par des clés étrangères (`metadata.lignage` dans PostgreSQL). L'identifiant d'un jeu est son MD5 DVC : il désigne l'objet exact dans MinIO.\n\n```sql\nSELECT * FROM metadata.lignage ORDER BY model_version DESC;\n```"
+      }
+    }
+  ]
+}

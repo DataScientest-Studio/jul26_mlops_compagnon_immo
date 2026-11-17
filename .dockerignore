@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.env
+.cache/
+mlruns/
+build_api.log
+tests/
+.github/
+.pytest_cache/

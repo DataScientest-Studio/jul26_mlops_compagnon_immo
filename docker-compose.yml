@@ -1,0 +1,550 @@
+#----------------------------------------------------------------------------------------
+# Compagnon Immobilier : stack complète
+#   Existant : postgres, training_api, prediction_api, minio, mlflow
+#   Ajoutés   : db-init, minio-init, airflow-*, evidently-ui (option), sql_exporter, prometheus, grafana
+# Monitoring infrastructure.
+# Node Exporter et cAdvisor : hôte Docker Linux.
+# ------------------------------------------------------------------------------------
+
+# ----- configuration commune des services Airflow --------------------
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  image: compagnon-airflow:3.3.2
+  restart: unless-stopped
+  user: "${AIRFLOW_UID:-50000}:0"
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/airflow_metadata
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Définir AIRFLOW_FERNET_KEY dans .env}
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?Définir AIRFLOW_JWT_SECRET dans .env}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # Accès local sans mot de passe: interface publiée que sur 127.0.0.1.
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    # DogStatsD conserve les tags dag_id d'Airflow 3 (StatsD classique les perd).
+    AIRFLOW__METRICS__STATSD_ON: "true"
+    AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+    AIRFLOW__METRICS__STATSD_PORT: "9125"
+    AIRFLOW__METRICS__STATSD_PREFIX: airflow
+    AIRFLOW__METRICS__STATSD_DATADOG_ENABLED: "true"
+    # Code du projet et services joignables depuis les tâches (DAG monitoring, futur DAG d'entraînement)
+    PYTHONPATH: /opt/airflow/projet
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    MONITORING_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    EVIDENTLY_WORKSPACE: /evidently_workspace
+    MONITORING_WINDOW_DAYS: "7"
+    MONITORING_MIN_ROWS: "3"   # Nombre requêtes de prédiction minimum 
+    # Versionnement DVC des jeux de données (DAG training_immobilier), stockage dans MinIO
+    DVC_WORKSPACE: /opt/airflow/projet
+    DVC_REMOTE_NAME: ${DVC_REMOTE_NAME:-minio}
+    ##DVC_S3_ENDPOINT: http://minio:9000
+    DVC_GIT_USER_NAME: ${DVC_GIT_USER_NAME:-Airflow datasets}
+    DVC_GIT_USER_EMAIL: ${DVC_GIT_USER_EMAIL:-airflow@localhost}
+    # Dépôt bind-mounté: exception limitée à cette racine, sans configuration globale.
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: /opt/airflow/projet
+    AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+    AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    AWS_DEFAULT_REGION: us-east-1
+    MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    SQL_DIR: /opt/airflow/projet/sql
+    GIT_COMMIT: ${GIT_COMMIT:-}              # optionnel : commit du code, noté dans metadata.prepared_datasets
+  volumes:
+    - ./dags:/opt/airflow/dags
+    # Même clone Git, .git inclus ; aucun dépôt supplémentaire.
+    - .:/opt/airflow/projet
+    - airflow_logs:/opt/airflow/logs
+    - evidently_workspace:/evidently_workspace
+  networks:
+    - compagnon_network
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: compagnon_postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    ports:
+      - "127.0.0.1:5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - compagnon_network
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+#------ PgAdmin 4 -----------
+  pgadmin:
+    image: dpage/pgadmin4:9.19
+    container_name: compagnon_pgadmin
+    restart: unless-stopped
+
+    entrypoint:
+      - /venv/bin/python3
+      - /opt/init-pgadmin.py
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGADMIN_SERVER_JSON_FILE: /var/lib/pgadmin/servers.json
+
+    ports:
+      - "127.0.0.1:5050:80"
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin4/init-pgadmin.py:/opt/init-pgadmin.py:ro
+
+    networks:
+      - compagnon_network
+  # ----- création idempotente des bases et du schéma monitoring ------
+  # Relancé à chaque "up" ; fonctionne aussi sur un volume postgres déjà initialisé
+  # (contrairement à /docker-entrypoint-initdb.d, qui ne s'exécute qu'une fois).
+  db-init:
+    image: postgres:16
+    container_name: compagnon_db_init
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      APP_DB: ${POSTGRES_DB}
+    volumes:
+      - ./docker/db-init:/init:ro
+      - ./sql:/sql:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        psql -d postgres -v ON_ERROR_STOP=1 -f /init/01-create-databases.sql
+        psql -d "$$APP_DB" -v ON_ERROR_STOP=1 -f /sql/01_monitoring_schema.sql
+        psql -d "$$APP_DB" -v ON_ERROR_STOP=1 -f /sql/02_metadata_schema.sql
+        psql -d "$$APP_DB" -v ON_ERROR_STOP=1 -f /sql/03_monitoring_latest_index.sql
+        psql -d "$$APP_DB" -v ON_ERROR_STOP=1 -f /sql/04_metadata_git_dvc.sql
+        psql -d "$$APP_DB" -v ON_ERROR_STOP=1 -f /sql/05_prediction_logs_complets.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - compagnon_network
+
+  training_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: compagnon_training_api
+    restart: unless-stopped
+    command: uvicorn src.api.training_api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8002:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      USER_PASSWORD_HASH: ${USER_PASSWORD_HASH}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    networks:
+      - compagnon_network
+
+  prediction_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: compagnon_prediction_api
+    restart: unless-stopped
+    command: uvicorn src.api.prediction_api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      USER_PASSWORD_HASH: ${USER_PASSWORD_HASH}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      db-init:                               # le schéma monitoring (journal des prédictions) doit exister
+        condition: service_completed_successfully
+    networks:
+      - compagnon_network
+
+  minio:
+    image: dappros/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: compagnon_minio
+    restart: unless-stopped
+
+    command: server /data --console-address ":9001"
+
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # Métriques uniquement. Le port 9000 reste lié à 127.0.0.1.
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+    volumes:
+      - minio_data:/data
+
+    networks:
+      - compagnon_network
+
+  # création des buckets MinIO ----------------------
+  minio-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: compagnon_minio_init
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MINIO_BUCKETS: mlflow-artifacts,dvc-data
+    volumes:
+      - ./docker/minio-init:/init:ro
+    command: ["python", "/init/create_buckets.py"]
+    depends_on:
+      - minio
+    networks:
+      - compagnon_network
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+
+    container_name: compagnon_mlflow
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:5000:5000"
+
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow_metadata
+
+    command:
+      - /bin/sh
+      - -c
+      - |
+        # Les fichiers multiprocess ne doivent pas survivre à un redémarrage.
+        rm -rf /tmp/mlflow-prometheus
+        exec mlflow server \
+          --backend-store-uri "$$MLFLOW_BACKEND_STORE_URI" \
+          --artifacts-destination s3://mlflow-artifacts \
+          --serve-artifacts \
+          --host 0.0.0.0 \
+          --port 5000 \
+          --expose-prometheus /tmp/mlflow-prometheus \
+          --allowed-hosts "localhost,127.0.0.1,mlflow,mlflow:5000,localhost:5000,127.0.0.1:5000"
+
+    volumes:
+      - ./docker/mlflow/healthcheck.py:/opt/healthcheck.py:ro
+    healthcheck:
+      test: ["CMD", "python", "/opt/healthcheck.py"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+
+    # Attend que la base mlflow_metadata et le bucket existent.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+
+    networks:
+      - compagnon_network
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: streamlit/Dockerfile
+    container_name: compagnon_streamlit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      PREDICTION_API_URL: http://prediction_api:8000
+    depends_on:
+      - prediction_api
+    networks:
+      - compagnon_network
+
+  # ----- Airflow 3 (LocalExecutor) -----------------------------------
+  airflow-init:
+    <<: *airflow-common
+    container_name: compagnon_airflow_init
+    restart: "no"
+    user: "0:0"
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/logs /evidently_workspace
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /evidently_workspace
+        exec /entrypoint airflow version
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: "true"      # migre la base airflow_metadata au démarrage
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+
+  airflow-apiserver:
+    <<: *airflow-common
+    container_name: compagnon_airflow_apiserver
+    command: api-server
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: compagnon_airflow_scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      mlflow:
+        condition: service_healthy
+      statsd-exporter:
+        condition: service_started
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: compagnon_airflow_dag_processor
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      mlflow:
+        condition: service_healthy
+      statsd-exporter:
+        condition: service_started
+
+  # ----- interface Evidently ---------------------------
+  # Lancer avec : docker compose --profile ui up -d evidently-ui
+  evidently-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.evidently
+    container_name: compagnon_evidently_ui
+    profiles: ["ui"]
+    restart: unless-stopped
+    user: "${AIRFLOW_UID:-50000}:0"          # même user qu'Airflow : mêmes droits sur le volume
+    command: evidently ui --workspace /evidently_workspace/workspace --host 0.0.0.0 --port 8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - evidently_workspace:/evidently_workspace
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - compagnon_network
+
+  # ----- sql_exporter (immobilier_db -> métriques Prometheus) --------
+  sql_exporter:
+    image: burningalchemist/sql_exporter:0.24.13
+    container_name: compagnon_sql_exporter
+    restart: unless-stopped
+    command: ["-config.file=/etc/sql_exporter/sql_exporter.yml"]
+    environment:
+      # Prioritaire sur data_source_name du fichier de configuration.
+      # Si le mot de passe contient des caractères spéciaux (@ : / ?), l'encoder en URL.
+      SQLEXPORTER_TARGET_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    volumes:
+      - ./monitoring/sql_exporter:/etc/sql_exporter:ro
+    ports:
+      - "127.0.0.1:9399:9399"                # pour tester : curl localhost:9399/metrics
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - compagnon_network
+
+  # ----- Monitoring PostgreSQL (distinct des métriques métier sql_exporter) --
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    restart: unless-stopped
+    environment:
+      # Variables séparées : le mot de passe n'est pas concaténé dans une URL.
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [compagnon_network]
+
+  # ----- Hôte Docker Linux : pas le poste physique sur Docker Desktop --------
+  node-exporter:
+    profiles: ["linux-host"]
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($$|/)
+    volumes:
+      #- /:/host:ro,rslave  #linux
+      - /:/host:ro          #windows
+    networks: [compagnon_network]
+
+  # cAdvisor nécessite l'accès privilégié à l'hôte. Ne pas exposer publiquement.
+  cadvisor:
+    profiles: ["linux-host"]
+    image: ghcr.io/google/cadvisor:0.55.1
+    restart: unless-stopped
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    networks: [compagnon_network]
+
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.28.0
+    restart: unless-stopped
+    command:
+      - --statsd.mapping-config=/etc/statsd/mapping.yml
+      - --statsd.listen-udp=:9125
+      - --web.listen-address=:9102
+    volumes:
+      - ./monitoring/statsd/mapping.yml:/etc/statsd/mapping.yml:ro
+    networks: [compagnon_network]
+
+  # ----- Prometheus ----------------------------------
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: compagnon_prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - sql_exporter
+    networks:
+      - compagnon_network
+
+  # ----- Grafana -------
+  grafana:
+    image: grafana/grafana:13.3.0
+    container_name: compagnon_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Définir GRAFANA_ADMIN_PASSWORD dans .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DEFAULT_TIMEZONE: Europe/Paris
+      # Optionnel, utilisé seulement si le modèle de contact point est activé.
+      GRAFANA_ALERT_WEBHOOK_URL: ${GRAFANA_ALERT_WEBHOOK_URL:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - compagnon_network
+
+volumes:
+  postgres_data:
+  minio_data:
+  airflow_logs:
+  evidently_workspace:
+  prometheus_data:
+  grafana_data:
+  dvc_workspace:
+  pgadmin_data:
+
+networks:
+  compagnon_network:
+    driver: bridge

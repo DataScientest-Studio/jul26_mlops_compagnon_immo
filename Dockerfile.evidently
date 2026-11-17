@@ -1,0 +1,6 @@
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir "evidently==0.7.23" "pandas<3"
+
+ENV HOME=/tmp
+EXPOSE 8001

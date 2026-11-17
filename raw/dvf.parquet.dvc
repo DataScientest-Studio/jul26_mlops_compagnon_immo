@@ -1,0 +1,5 @@
+outs:
+- md5: 4fcc2e90728d71480457803eb4f61b83
+  size: 13999424
+  hash: md5
+  path: dvf.parquet

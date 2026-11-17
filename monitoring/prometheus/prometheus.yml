@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Métriques ML (drift, volumes, prédictions) lues dans immobilier_db par sql_exporter.
+  # Elles ne changent qu'à chaque run du DAG de monitoring : inutile de scruter plus souvent.
+  - job_name: sql_exporter
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["sql_exporter:9399"]
+
+  # API de prédiction : trafic, latence, erreurs, prédictions par version de modèle (GET /metrics).
+  - job_name: inference_api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["prediction_api:8000"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      # Évite de conserver les labels d'image arbitraires de tous les conteneurs.
+      - action: labeldrop
+        regex: container_label_.*
+
+  - job_name: airflow_statsd
+    static_configs:
+      - targets: ["statsd-exporter:9102"]
+
+  # Fonctionnement du serveur MLflow uniquement : HTTP, latence, erreurs.
+  # Les MAE/RMSE/R² continuent de passer par MLflow et ml_model_score/sql_exporter.
+  - job_name: mlflow_server
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["mlflow:5000"]
+
+  # Endpoint natif v3 de l'image MinIO existante, sans exporter supplémentaire.
+  # Un endpoint absent ou refusé reste visible via up=0, jamais remplacé par zéro.
+  - job_name: minio
+    metrics_path: /minio/metrics/v3
+    static_configs:
+      - targets: ["minio:9000"]
