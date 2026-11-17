@@ -3,7 +3,7 @@ name: Release - Compagnon Immobilier
 
 on:
   push:
-    branches: [master]
+    branches: [dev_mlops_kaw]
 
 jobs:
   release:
