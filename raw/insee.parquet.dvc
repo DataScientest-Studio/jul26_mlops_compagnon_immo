@@ -1,5 +1,5 @@
 outs:
-- md5: f43d3919c23b010f76a46a68213695e6
+- md5: 9f3be24ab2143bb011c059e1d1803ce9
   size: 98993
   hash: md5
   path: insee.parquet
