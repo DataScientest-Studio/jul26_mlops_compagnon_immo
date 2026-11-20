@@ -1,0 +1,485 @@
+/* Arrière-plan de l'application */
+.stApp {
+    background:
+        radial-gradient(circle at 88% 8%, rgba(255, 201, 190, 0.45), transparent 33%),
+        radial-gradient(circle at 8% 35%, rgba(198, 221, 250, 0.65), transparent 36%),
+        linear-gradient(135deg, #F6F9FE 0%, #F5F7FD 55%, #FFF8F4 100%);
+    background-attachment: fixed;
+}
+[data-testid="stHeader"] { background: transparent; }
+.block-container {
+    max-width: 1450px;
+    padding-top: 0.7rem;
+    padding-bottom: 1rem;
+}
+
+/* Espacement compact en haut de la page */
+.block-container h1 { font-size: 2rem; line-height: 1.4; margin: 0 0 0.30rem 0; padding: 0; }
+.block-container h2, .block-container h3 { margin-top: 0.25rem; padding-top: 0; }
+.block-container [data-testid="stCaptionContainer"] { margin-top: 2px; margin-bottom: 2px; }
+.block-container [data-testid="stVerticalBlock"] { gap: 0.30rem; }
+/* Bandeau de connexion plus compact */
+.block-container [data-testid="stAlert"] { padding: 0.08rem 0.6rem !important; min-height: 0 !important; }
+.block-container [data-testid="stAlert"] p { margin: 0 !important; line-height: 1.25 !important; }
+/* Détails de la prédiction regroupés et resserrés */
+.st-key-details_estimation [data-testid="stVerticalBlock"] { gap: 0.08rem !important; }
+.st-key-details_estimation [data-testid="stCaptionContainer"] { margin: 0 !important; }
+.st-key-details_estimation [data-testid="stCodeBlock"] { margin: 0 !important; }
+.st-key-details_estimation [data-testid="stCodeBlock"] pre { padding: 0.35rem 0.65rem !important; }
+
+.block-container hr { margin: 0.10rem 0; }
+.stTabs [data-baseweb="tab-list"] { margin-bottom: 0.25rem; }
+/* Navigation verticale : textes plus lisibles et menu assez large */
+section[data-testid="stSidebar"] {
+    width: 340px !important;
+    min-width: 340px !important;
+}
+section[data-testid="stSidebar"] [data-testid="stRadio"] label,
+section[data-testid="stSidebar"] [data-testid="stRadio"] p {
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+}
+
+/* Conteneurs de saisie et métriques */
+[data-testid="stForm"] {
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #E4EAF3;
+    border-radius: 18px;
+    padding: 12px 16px;
+    box-shadow: 0 12px 30px rgba(32, 56, 93, 0.07);
+}
+[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #E4EAF3;
+    border-left: 4px solid #F16B5C;
+    border-radius: 14px;
+    padding: 10px 14px;
+    box-shadow: 0 8px 20px rgba(32, 56, 93, 0.05);
+}
+
+/* Fond blanc pour l'ensemble des filtres de l'onglet Estimation */
+.st-key-bloc_filtres_estimation {
+    background: #FFFFFF !important;
+    border: 1px solid #E4EAF3 !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    box-shadow: 0 12px 30px rgba(32, 56, 93, 0.07) !important;
+}
+
+/* Onglets et boutons */
+.stTabs [data-baseweb="tab-list"] { gap: 12px; }
+.stTabs [data-baseweb="tab"] {
+    background: rgba(255, 255, 255, 0.70);
+    border-radius: 10px 10px 0 0;
+    padding: 5px 12px;
+}
+.stTabs [aria-selected="true"] { color: #E75949; font-weight: 700; }
+.stButton button[kind="primary"],
+[data-testid="stFormSubmitButton"] button[kind="primary"] {
+    background: #F16B5C;
+    border-color: #F16B5C;
+    color: white;
+    border-radius: 10px;
+}
+.stButton button[kind="primary"]:hover,
+[data-testid="stFormSubmitButton"] button[kind="primary"]:hover {
+    background: #DE5446;
+    border-color: #DE5446;
+    color: white;
+}
+.st-key-btn_deconnexion button {
+    margin-top: 4px;
+}
+/* Conserver la largeur du bloc vert */
+.block-container [data-testid="stAlert"] {
+    padding: 0.35rem 0.65rem !important;
+}
+
+/* Remonter légèrement le texte uniquement */
+.block-container [data-testid="stAlert"] p {
+    margin: 0 !important;
+    position: relative;
+    top: -3px;
+}
+/* Menu latéral : navigation épurée, sans cadres */
+section[data-testid="stSidebar"] {
+    background: #F5F7FB;
+}
+section[data-testid="stSidebar"] .stButton > button {
+    width: 100%;
+    min-height: 2.15rem;
+    padding: 0.45rem 0.75rem !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    white-space: normal !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 9px !important;
+    color: #25324A !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+section[data-testid="stSidebar"] .stButton > button,
+section[data-testid="stSidebar"] .stButton > button > div,
+section[data-testid="stSidebar"] .stButton > button [data-testid="stMarkdownContainer"] {
+    justify-content: flex-start !important;
+    align-items: center !important;
+    text-align: left !important;
+}
+section[data-testid="stSidebar"] .stButton > button p {
+    width: 100%;
+    margin: 0 !important;
+    text-align: left !important;
+    white-space: normal !important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: #E9EEF6 !important;
+    color: #25324A !important;
+}
+/* Page sélectionnée : léger surlignage corail, sans contour */
+section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: #FCE4E0 !important;
+    color: #C84D40 !important;
+    font-weight: 700 !important;
+}
+section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+    background: #FADAD4 !important;
+    color: #B94338 !important;
+}
+section[data-testid="stSidebar"] .stButton > button:focus-visible {
+    outline: 2px solid #F16B5C !important;
+    outline-offset: 1px;
+}
+
+
+/* Sous-parties du cadre du projet : retrait léger des deux colonnes */
+.st-key-soutenance_colonnes {
+    padding-left: 44px !important;
+    box-sizing: border-box;
+}
+
+/* Page 1 — Contexte et objectifs : seul le grand titre a un séparateur */
+.st-key-soutenance_contexte h3 {
+    margin: 0.45rem 0 0.55rem !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+    line-height: 1.3 !important;
+}
+.st-key-soutenance_contexte h4 {
+    margin: 0.50rem 0 0.50rem !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+    line-height: 1.35 !important;
+}
+.st-key-soutenance_contexte [data-testid="stVerticalBlock"] {
+    gap: 0.48rem !important;
+}
+.st-key-soutenance_contexte ul {
+    margin: 0.15rem 0 0.30rem !important;
+    padding-left: 0.3rem !important;
+}
+.st-key-soutenance_contexte li {
+    margin-bottom: 0.32rem !important;
+    line-height: 1.45 !important;
+}
+.st-key-soutenance_contexte p {
+    line-height: 1.45 !important;
+}
+
+/* Réduire l'espace au-dessus de l'image d'architecture */
+.st-key-soutenance_architecture [data-testid="stImage"] {
+    margin-top: -20px !important;
+}
+/* Onglet 3 — Retrait du contenu sous Suivi et gestion des modèles */
+.st-key-soutenance_mlflow_details {
+    padding-left: 44px !important;
+    box-sizing: border-box;
+}
+/* Onglet 4 — Espacement normal de la capture Swagger */
+.st-key-soutenance_api_details [data-testid="stImage"] {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* ==========================================================
+   ONGLET 4 — SÉCURITÉ OAUTH2 / JWT
+   ========================================================== */
+.securite-api {
+    background: #E6F2FF;
+    border-radius: 12px;
+    padding: 18px 20px;
+    min-height: 125px;
+    box-sizing: border-box;
+    color: #173C60;
+    font-size: 16px;
+    line-height: 1.5;
+}
+.securite-api-titre {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+.securite-api-etapes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+.securite-api-etape {
+    background: #F8FBFF;
+    padding: 12px;
+    border-radius: 8px;
+}
+.securite-api-description {
+    margin-top: 5px;
+    font-size: 14px;
+}
+@media (max-width: 900px) {
+    .securite-api-etapes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ==========================================================
+   SOUTENANCE — TAILLE DES TITRES ONGLET 1 À 8
+   ========================================================== */
+
+/* Titres principaux numérotés : 29px */
+.st-key-soutenance_contexte .titre-soutenance,
+.st-key-soutenance_architecture .titre-soutenance,
+.st-key-soutenance_mlflow .titre-soutenance,
+.st-key-soutenance_deploiement_api .titre-onglet-4,
+.st-key-soutenance_cicd .titre-soutenance {
+    font-size: 29px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* Sous-titres avec icônes : 22px */
+.st-key-soutenance_contexte h3,
+.st-key-soutenance_architecture h3,
+.st-key-soutenance_mlflow h3,
+.st-key-soutenance_deploiement_api h3,
+.st-key-soutenance_cicd h3 {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* ONGLET 1 — Sous-titres Cadre technique et Contexte métier */
+.st-key-soutenance_colonnes h4 {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* ==========================================================
+   ONGLET 5 — CI/CD ET TESTS
+   ========================================================== */
+
+/* Conteneurs CI et Release */
+.cicd-bloc {
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-height: 0;
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+/* Bloc CI */
+.cicd-ci {
+    background: #E8F5EE;
+    color: #175B3B;
+}
+
+/* Bloc Release */
+.cicd-release {
+    background: #E6F2FF;
+    color: #173C60;
+}
+
+/* Titres CI et Release */
+.cicd-titre {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* Déclencheurs */
+.cicd-declenchement {
+    font-size: 14px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+
+/* Étapes */
+.cicd-etapes {
+    border-top: 1px solid rgba(70,110,130,.18);
+    padding-top: 8px;
+}
+
+.cicd-etape {
+    margin-top: 4px;
+}
+
+/* Résultat des workflows */
+.cicd-succes {
+    margin-top: 10px;
+    font-weight: 700;
+    color: #147D49;
+}
+
+/* Blocs des tests Pytest */
+.pytest-bloc {
+    background: #E6F2FF;
+    border-radius: 12px;
+    padding: 12px 16px;
+    min-height: 125px;
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: 1.45;
+    color: #345C7A;
+}
+
+.pytest-titre {
+    color: #173C60;
+    font-weight: 700;
+}
+
+.pytest-description {
+    margin-top: 7px;
+}
+
+/* Textes et espacements de l’onglet 5 */
+.cicd-objectif,
+.cicd-publication,
+.cicd-tests-intro {
+    font-size: 17px;
+    line-height: 1.5;
+}
+
+.cicd-publication {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.cicd-tests-intro {
+    margin-bottom: 0;
+}
+
+.cicd-perspective {
+    font-size: 16px;
+    line-height: 1.5;
+    margin-top: 25px;
+}
+/* ==========================================================
+   ONGLET 6 — AUTOMATISATION AVEC AIRFLOW
+   ========================================================== */
+
+/* Titre principal */
+.st-key-soutenance_airflow .titre-soutenance {
+    font-size: 29px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* Sous-titres */
+.st-key-soutenance_airflow h3 {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* Blocs des étapes Airflow */
+.airflow-bloc {
+    background: #E6F2FF;
+    border-radius: 12px;
+    padding: 12px 16px;
+    min-height: 105px;
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: 1.4;
+    color: #173C60;
+}
+
+/* Descriptions */
+.airflow-description {
+    margin-top: 5px;
+    color: #345C7A;
+}
+
+/* ==========================================================
+   ONGLET 8 — BILAN ET PERSPECTIVES
+   ========================================================== */
+
+/* Titre principal */
+.st-key-soutenance_bilan .titre-soutenance {
+    font-size: 29px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* Sous-titres */
+.st-key-soutenance_bilan h3 {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* Blocs horizontaux */
+.bilan-bloc {
+    background: #E6F2FF;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px !important;
+    box-sizing: border-box;
+    color: #173C60;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+/* Titre de chaque bloc */
+.bilan-titre {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+/* Déjà réalisé à gauche et Perspectives à droite */
+.bilan-contenu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+/* Description */
+.bilan-description {
+    margin-top: 5px;
+    color: #345C7A;
+}
+
+/* Affichage sur petit écran */
+@media (max-width: 900px) {
+    .bilan-contenu {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
+
+/* ==========================================================
+   ONGLET 7 — MONITORING ET DRIFT
+   ========================================================== */
+
+/* Titre principal : 29px */
+.st-key-soutenance_monitoring .titre-soutenance {
+    font-size: 29px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}
+
+/* Sous-titres : 22px */
+.st-key-soutenance_monitoring h3 {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+}

@@ -5,6 +5,8 @@ WORKDIR /app
 RUN pip install --no-cache-dir streamlit requests
 
 COPY streamlit/app.py .
+COPY streamlit/style.css .
+COPY streamlit/images/ ./images/
 
 EXPOSE 8501
 

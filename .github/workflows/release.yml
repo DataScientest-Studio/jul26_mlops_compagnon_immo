@@ -1,9 +1,8 @@
-
 name: Release - Compagnon Immobilier
 
 on:
   push:
-    branches: [master]
+    branches: [tests_githubAction_kaw] # master
 
 jobs:
   release:
@@ -27,9 +26,9 @@ jobs:
 
       - name: Exécuter les tests unitaires
         env:
-            JWT_SECRET_KEY: "cle-tests"
-            ADMIN_PASSWORD_HASH: "hash-test"
-            USER_PASSWORD_HASH: "hash-test"
+          JWT_SECRET_KEY: "cle-tests"
+          ADMIN_PASSWORD_HASH: "hash-test"
+          USER_PASSWORD_HASH: "hash-test"
         run: python -m pytest tests/ -v
 
       - name: Connexion à DockerHub
@@ -38,15 +37,42 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Construire et publier les images Docker
+      # API FASTAPI
+      - name: Build et Push - API
         env:
           HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           docker build -f Dockerfile.api -t $HUB_USER/compagnon-api:latest .
           docker push $HUB_USER/compagnon-api:latest
 
+      # MLFLOW
+      - name: Build et Push - MLflow
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
           docker build -f Dockerfile.mlflow -t $HUB_USER/compagnon-mlflow:latest .
           docker push $HUB_USER/compagnon-mlflow:latest
 
+      # STREAMLIT
+      - name: Build et Push - Streamlit
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
           docker build -f streamlit/Dockerfile -t $HUB_USER/compagnon-streamlit:latest .
           docker push $HUB_USER/compagnon-streamlit:latest
+
+      # AIRFLOW
+      - name: Build et Push - Airflow
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          docker build -f Dockerfile.airflow -t $HUB_USER/compagnon-airflow:latest .
+          docker push $HUB_USER/compagnon-airflow:latest
+
+      # EVIDENTLY
+      - name: Build et Push - Evidently
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          docker build -f Dockerfile.evidently -t $HUB_USER/compagnon-evidently:latest .
+          docker push $HUB_USER/compagnon-evidently:latest
