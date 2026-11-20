@@ -2,7 +2,7 @@ name: Release - Compagnon Immobilier
 
 on:
   push:
-    branches: [tests_githubAction_kaw] # master
+    branches: [master]
 
 jobs:
   release:
